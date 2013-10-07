@@ -1,0 +1,3 @@
+- Stereo pan rotator
+- Smooth square waveshape
+- Triangle waveshape
