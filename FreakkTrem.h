@@ -40,7 +40,7 @@ enum EParams
   kGain= 0,
   kDepth,
   kFreq,
-  kModType,
+  kModMix,
   kIKnobRotaterControl_def,
   kNumParams
 };
@@ -50,14 +50,17 @@ enum ELayout
   kW = GUI_WIDTH,  // width of plugin window
   kH = GUI_HEIGHT,	// height of plugin window
 
-  kGainKnob_def_X = 95,
-  kGainKnob_def_Y = 40,
+  kGainKnob_def_X = 83,
+  kGainKnob_def_Y = 27,
 
-  kSpeedKnob_def_X = 28,
-  kSpeedKnob_def_Y = 102,
+  kSpeedKnob_def_X = 16,
+  kSpeedKnob_def_Y = 91,
 
-  kDepthKnob_def_X = 166,
-  kDepthKnob_def_Y = 102
+  kDepthKnob_def_X = 154,
+  kDepthKnob_def_Y = 91,
+
+  kTypeKnob_def_X = 104,
+  kTypeKnob_def_Y = 128
 };
 
 class FreakkTrem: public IPlug
@@ -71,7 +74,7 @@ public:
 
 private:
   double mGain, mDepth, mFreq, panL, panR;
-  int mModType;
+  double mModMix;
   long counter;
 };
 

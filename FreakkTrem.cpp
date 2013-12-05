@@ -36,18 +36,6 @@
 #include "../../WDL/denormal.h"
 
 
-enum modParams 
-{
-	MOD_BYPASS = 0,
-	MOD_SINE,
-	MOD_ROTARY,
-	MOD_TRIANGLE,
-	MOD_SQUARE,
-	MOD_SAW,
-	MOD_MANUAL,
-	
-};
-
 FreakkTrem::FreakkTrem(IPlugInstanceInfo instanceInfo):
   IPLUG_CTOR(kNumParams, 0, instanceInfo)
 {
@@ -55,8 +43,10 @@ FreakkTrem::FreakkTrem(IPlugInstanceInfo instanceInfo):
   //arguments are: name, defaultVal, minVal, maxVal, step, label
   GetParam(kGain)->InitDouble("Gain", 1, 0., 1.5, 0.001, ""); // Gain knob offers a little amplification
   GetParam(kDepth)->InitDouble("Depth", 0.5, 0., 1., 0.001, "%");
-  GetParam(kFreq)->InitDouble("Freq", 6, 0., 20, 0.5, "Hz");
-  GetParam(kModType)->InitInt("Mod", 1, 1, 6, "-" ); // Mod Selector goes from 1 to max, mode 0=BYPASS is footswitch-activated
+  GetParam(kFreq)->InitDouble("Freq", 6, 0., 12, 0.5, "Hz");
+  GetParam(kModMix)->InitDouble("Mod", 0., 0., 1., 0.01, "S<>C" ); // Mod Mixer
+  
+
   GetParam(kIKnobRotaterControl_def)->InitDouble("IKnobRotaterControl Default", 2., .0, 5., .1, "");
 
   IGraphics* pGraphics = MakeGraphics(this, kW, kH); // MakeGraphics(this, kW, kH);
@@ -71,6 +61,9 @@ FreakkTrem::FreakkTrem(IPlugInstanceInfo instanceInfo):
 
   bitmap = pGraphics->LoadIBitmap(KNOB_GAIN_ID, KNOB_GAIN_FN);
   pGraphics->AttachControl(new IKnobRotaterControl(this, kGainKnob_def_X, kGainKnob_def_Y, kGain, &bitmap));
+
+  bitmap = pGraphics->LoadIBitmap(KNOB_TYPE_ID, KNOB_TYPE_FN);
+  pGraphics->AttachControl(new IKnobRotaterControl(this, kTypeKnob_def_X, kTypeKnob_def_Y, kModMix, &bitmap));
 
   //IGraphics* pGraphics = MakeGraphics(this, GUI_WIDTH, GUI_HEIGHT);
   //IText textProps(12, &COLOR_BLACK, "Verdana", IText::kStyleNormal, IText::kAlignNear, 0, IText::kQualityNonAntiAliased);
@@ -100,8 +93,8 @@ void FreakkTrem::OnParamChange(int paramIdx)
 	case kFreq:
 	  mFreq = GetParam(kFreq)->Value(); // divided by 2 gives the Peak Frequency
 	  break;
-	case kModType:
-	  mModType = (int)GetParam(kModType)->Value();
+	case kModMix:
+	  mModMix = (int)GetParam(kModMix)->Value();
 	  break;
 	default:
 	  break;
@@ -119,7 +112,7 @@ void FreakkTrem::ProcessDoubleReplacing(double** inputs, double** outputs, int s
 	bool isMono = !IsInChannelConnected(1);
 	
 	double samplerate = GetSampleRate();
-	double modifier;
+	double sineMod, squareMod;
 	int window = 0;
 	
 	for (int s = 0; s < sampleFrames; ++s, ++in1, ++in2, ++out1, ++out2)
@@ -134,57 +127,24 @@ void FreakkTrem::ProcessDoubleReplacing(double** inputs, double** outputs, int s
 	{
 	counter = 0;
 	}
-	// f = counter/mSampleRate
-	// T = 1/f = mSampleRate/counter
-	switch(mModType){
-		case MOD_BYPASS:
-			//window = samplerate/(2*mFreq) is the number of segments in wihch 1 second of samples is divided
-			modifier = 1/mGain;
-			break;
-		case MOD_SINE:
-		// calculate the multiplier: 
+		// f = counter/mSampleRate
+		// T = 1/f = mSampleRate/counter
+		// calculate SINE multiplier: 
 		// 1) SINE WAVE CARRIER:
 		// v(t) = (Ec + em) * sin(2*PI*Freq*t) ==> [ Ec + Em * sin(2*PI*Freq*t) ] sin(2*PI*Freq*t) 
 		// Ec = carrier wave
 		// em = Em*sin(2*PI*Freq*t) instantaneous amplitude of the modulating signal
-		// 
-			modifier = (1.0 - mDepth) + mDepth * ( sin((2 * 3.14 *(mFreq/2)) * (counter/samplerate)) ) * (sin((2 *3.14 * (mFreq/2)) * (counter/samplerate)));
-			break;
+		// panL = panR = 1;
+		
+			// A
+			sineMod = (1.0 - mDepth) + mDepth * ( sin((2 * 3.14 *(mFreq/2)) * (counter/samplerate)) ) * (sin((2 *3.14 * (mFreq/2)) * (counter/samplerate)));
+			// B
+			//sineMod = (1.0 - mDepth) + mDepth *  ( 0.5 + 0.5 * sin((2 *3.14 * (mFreq)) * (counter/samplerate)));
+			squareMod = (1.0 - mDepth) + mDepth *  ( 0.5 + 0.5 * tanh( 10 * sin((2 *3.14 * (mFreq)) * (counter/samplerate)) ) );
+			*out1 = *in1 * ((1-mModMix) * sineMod + mModMix * squareMod) * mGain * panL;
+			*out2 = *in2 * ((1-mModMix) * sineMod + mModMix * squareMod) * mGain * panR;	
 
-		case MOD_TRIANGLE:
-			// modifier= counter/ (samplerate/(mFreq));
-			// modifier -= (int) modifier; // normalized 0 ... 1  
-			modifier = mDepth *( 0.5 + cos(3.14 * counter/samplerate) + abs( 1 - ((int)(counter/samplerate)) % 2 ));
-			panL = panR = 1;
-			break;
-
-		case MOD_SQUARE:
-			//window = samplerate/(2*mFreq) is the number of segments in wihch 1 second of samples is divided
-			//else modifier = 0;
-			window = 1 + (int) ( counter/ (samplerate/(2*mFreq)) );
-			modifier= window % 2;
-			panL = panR = 1;
-			break;
-
-		case MOD_SAW:
-			modifier=0;
-			panL = panR = 1;
-			break;
-		case MOD_MANUAL:
-			modifier = mDepth;
-			break;
-		case MOD_ROTARY:
-			modifier = (1.0 - mDepth) + mDepth * ( sin((2 * 3.14 *(mFreq/2)) * (counter/samplerate)) ) * (sin((2 * 3.14 * (mFreq/2)) * (counter/samplerate)));
-			panL = abs ( sin((2 * 3.14 *(mFreq/2)) * (counter/samplerate)) );
-			panR = abs ( cos((2 * 3.14 *(mFreq/2)) * (counter/samplerate)) );
-			break;
-		default:
-			modifier=0;
-			break;
-	}
-    
-		*out1 = *in1 * modifier * mGain * panL;
-		*out2 = *in2 * modifier * mGain * panR;
+		
 	}
 	/*	
 	for (int s = 0; s < sampleFrames; ++s, ++in1, ++in2, ++out1, ++out2)

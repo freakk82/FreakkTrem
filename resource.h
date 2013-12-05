@@ -60,6 +60,7 @@ instrument determined by PLUG _IS _INST
 #define KNOB_GAIN_ID  101
 #define KNOB_SPEED_ID  102
 #define KNOB_DEPTH_ID  103
+#define KNOB_TYPE_ID  104
 
 // Image resource locations for this plug.
 //#define KNOB_FN "resources/img/knob.png"
@@ -68,6 +69,7 @@ instrument determined by PLUG _IS _INST
 #define KNOB_GAIN_FN  "resources/img/KnobIndicator_250.png"
 #define KNOB_SPEED_FN  "resources/img/KnobIndicator_250.png"
 #define KNOB_DEPTH_FN  "resources/img/KnobIndicator_250.png"
+#define KNOB_TYPE_FN  "resources/img/KnobIndicator_Small.png"
 
 // GUI default dimensions
 #define GUI_WIDTH 250	
