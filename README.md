@@ -1,4 +1,6 @@
-FreakkTrem
-==========
+Freakk Trem VST
+=====================
 
-Tremolo vst plugin with sine and square lfo modulation.
+Tremolo VST PLugin
+
+![alt tag](screenshot.png)
